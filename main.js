@@ -5,7 +5,7 @@ async function main() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return alert('WebGL 2 not supported');
 
-  // Load shaders
+  // Load vertex and fragment shaders
   const [vsSource, fsSource] = await Promise.all([
     ShaderUtils.loadShaderSource('shaders/vertexShader.glsl'),
     ShaderUtils.loadShaderSource('shaders/fragmentShader.glsl'),
@@ -21,19 +21,28 @@ async function main() {
     0.5, -0.5,
   ]);
 
-  // Setup VAO and VBO
-  const vao = ShaderUtils.createAndBindVAO(gl);
-  const vbo = ShaderUtils.createBufferWithData(gl, vertices);
-  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-  ShaderUtils.enableVertexAttrib(gl, 0, 2, gl.FLOAT);
-  ShaderUtils.unbindVAO(gl);
+  // Setup VAO to store vertex attribute state
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
 
-  // Set viewport and clear screen
+  // Create VBO and upload vertex data
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+  // Define vertex attribute pointer for position (location 0)
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  // Unbind VAO
+  gl.bindVertexArray(null);
+
+  // Prepare canvas
   gl.viewport(0, 0, canvas.width, canvas.height);
   gl.clearColor(0.15, 0.15, 0.15, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  // Draw the triangle
+  // Draw triangle
   gl.useProgram(program);
   gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
