@@ -5,20 +5,15 @@ async function main() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return alert('WebGL 2 not supported');
 
-  // Load vertex and fragment shaders
   const [vsSource, fsSource] = await Promise.all([
     ShaderUtils.loadShaderSource('shaders/vertexShader.glsl'),
     ShaderUtils.loadShaderSource('shaders/fragmentShader.glsl'),
   ]);
 
-  // Create shader program
   const program = ShaderUtils.createShaderProgram(gl, vsSource, fsSource);
 
-  // Triangle vertices (x, y)
   const vertices = new Float32Array([
-    0, 0.5,
-    -0.5, -0.5,
-    0.5, -0.5,
+    0, 0
   ]);
 
   // Setup VAO to store vertex attribute state
@@ -30,7 +25,7 @@ async function main() {
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-  // Define vertex attribute pointer for position (location 0)
+  // Define vertex attribute pointer for position 
   gl.enableVertexAttribArray(0);
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
@@ -42,10 +37,10 @@ async function main() {
   gl.clearColor(0.15, 0.15, 0.15, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  // Draw triangle
+  // Draw 
   gl.useProgram(program);
   gl.bindVertexArray(vao);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.drawArrays(gl.POINTS, 0, 1);
   gl.bindVertexArray(null);
 }
 
