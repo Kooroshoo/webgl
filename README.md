@@ -36,12 +36,13 @@ This series of exercises introduces key WebGL2 concepts through step-by-step exa
 
 ---
 
-## 4. Use Uniforms to Change Triangle Color
+## 4. Use Uniforms to Dynamically Change Triangle Color
 
-- **Goal**: Understand uniforms and dynamic shader input.
+- **Goal**: Learn how to use uniform variables to pass data from JavaScript to shaders, enabling dynamic updates to shader behavior.
 - **Tasks**:
-  - Use a uniform variable in the fragment shader for color.
-  - Change the uniform color dynamically from JavaScript before each draw call.
+  - Define a uniform variable in the fragment shader to represent the triangle color.
+  - From JavaScript, update this uniform value dynamically before each draw call to change the triangle’s color in real-time.
+  - Implement a rendering loop that animates or modifies the uniform color continuously using `requestAnimationFrame`.
 
 ---
 
