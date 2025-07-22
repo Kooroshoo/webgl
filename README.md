@@ -15,14 +15,15 @@ This series of exercises introduces key WebGL2 concepts through step-by-step exa
 
 ---
 
-## 2. Draw a Colored Triangle
+## 2. Draw a Colored Triangle (Using Buffers)
 
-- **Goal**: Learn to pass vertex attributes and vary colors.
+- **Goal**: Learn to pass vertex attributes (position and color) using buffers and vary the color across the triangle.
 - **Tasks**:
-  - Draw the same triangle as your original code.
-  - Add a color attribute per vertex.
-  - Pass color from the vertex shader to the fragment shader.
-  - Output the interpolated color in the fragment shader.
+  - Use a vertex buffer to define a triangle with position and color per vertex.
+  - Add a color attribute (e.g. RGB) to each vertex.
+  - Pass the color attribute from the vertex shader to the fragment shader using a varying.
+  - In the fragment shader, output the interpolated color from the vertex data.
+  - Use a VAO to manage the vertex attribute state.
 
 ---
 
