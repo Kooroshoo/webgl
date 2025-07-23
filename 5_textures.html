@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL2 Textures</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 1px solid #fff;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="glCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById('glCanvas');
+    const gl = canvas.getContext('webgl2');
+
+    if (!gl) {
+      alert('WebGL2 not supported');
+    }
+
+    // WebGL2 is ready. Start building your pipeline here.
+    
+    const vertexShaderSource = `#version 300 es
+
+    layout(location=0) in vec4 aPosition;
+    layout(location=1) in vec2 aTexCoord;
+
+    out vec2 vTexCoord;
+
+    void main() 
+    {
+      vTexCoord = aTexCoord;
+      gl_Position = aPosition;
+    }`;
+
+    const fragmentShaderSource = `#version 300 es
+    precision mediump float;  
+
+    in vec2 vTexCoord;
+    
+    uniform sampler2D uSampler;
+
+    out vec4 fragColor;
+    
+    void main() 
+    {
+      fragColor = texture(uSampler, vTexCoord);       // this is where we define our texture. uSampler(the actual image). vTexCoord (i.e. where to sample the texture)
+    }`;
+
+    const program = gl.createProgram();
+
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER)
+    gl.shaderSource(vertexShader, vertexShaderSource)
+    gl.compileShader(vertexShader)
+    gl.attachShader(program, vertexShader)
+
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+    gl.shaderSource(fragmentShader, fragmentShaderSource)
+    gl.compileShader(fragmentShader)
+    gl.attachShader(program, fragmentShader)
+
+    gl.linkProgram(program)
+
+    if (!gl.getProgramParameter(program, gl.Link_STATUS)) {
+      console.log(gl.getShaderInfoLog(vertexShader))
+      console.log(gl.getShaderInfoLog(fragmentShader))
+    }
+
+    gl.useProgram(program) 
+
+
+    const vertexBufferData = new Float32Array([
+      -1, -1,         // Vertex 0: bottom-left corner of screen
+      0.0,  1,        // Vertex 1: top-center of screen
+      1, -1,          // Vertex 2: bottom-right corner of screen
+    ]);
+
+    // UV Coordinates
+    const texCoordBufferData = new Float32Array([
+      0, 0,    
+      0.5, 1,  
+      1, 0,    
+    ]);
+
+    // Texture 
+    const pixels = new Uint8Array([
+      255,255,255,		255,255,0,			255,255,255,		0,0,0,
+      67,99,216,			245,130,49,			145,30,180,			70,240,240,
+      240,50,230,			188,246,12,			250,190,190,		0,128,128,
+      0,0,0,		      255,255,0,		  0,255,0,		    145,30,180,
+    ]);
+
+    const vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertexBufferData, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(0);
+
+    // UV 
+    const texCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, texCoordBufferData, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0,0);
+    gl.enableVertexAttribArray(1);
+
+    // we need to flip the texture
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    // Texture
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 4,4, 0, gl.RGB, gl.UNSIGNED_BYTE, pixels);
+
+
+    // Use nearest-neighbor filtering for both minification and magnification.
+    // This avoids the need for mipmaps and preserves sharp pixel edges.
+    // Note: By default, WebGL expects mipmaps for minification. Setting MIN_FILTER to NEAREST disables that requirement.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+
+
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    
+  </script>
+</body>
+</html>
