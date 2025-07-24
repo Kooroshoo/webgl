@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shading</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden; /* Prevent scrollbars */
+    }
+    canvas {
+      border: 1px solid #fff;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="glCanvas" width="800" height="600"></canvas>
+  <script type="module">
+    import { mat4 } from 'https://cdn.jsdelivr.net/npm/gl-matrix@3.4.3/esm/index.js';
+
+    const canvas = document.getElementById('glCanvas');
+    const gl = canvas.getContext('webgl2');
+
+    if (!gl) {
+      alert('WebGL2 not supported');
+    }
+
+    // --- Shaders ---
+    const vertexShaderSrc = `#version 300 es
+    uniform mat4 uModel;
+    uniform mat4 uView;
+    uniform mat4 uProjection;
+
+    layout(location=0) in vec4 aPosition;
+
+    void main()
+    {
+        gl_Position = uProjection * uView * uModel * aPosition;
+        gl_PointSize = 3.0; // Set point size to 3 pixels for better visibility
+    }`;
+
+    const fragmentShaderSrc = `#version 300 es
+    precision mediump float;
+
+    uniform vec4 uColor;
+
+    out vec4 fragColor;
+
+    void main()
+    {
+        fragColor = uColor;
+    }`;
+
+    // --- Shader and Program Compilation ---
+    const program = gl.createProgram();
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderSrc);
+    gl.compileShader(vertexShader);
+    gl.attachShader(program, vertexShader);
+
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderSrc);
+    gl.compileShader(fragmentShader);
+    gl.attachShader(program, fragmentShader);
+
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('Shader link error:', gl.getProgramInfoLog(program));
+      console.error('Vertex shader info:', gl.getShaderInfoLog(vertexShader));
+      console.error('Fragment shader info:', gl.getShaderInfoLog(fragmentShader));
+    }
+    gl.useProgram(program);
+
+    // --- OBJ Loader (Modified to only get 'v' vertices) ---
+    const loadObj = async url => {
+        const lines = (await (await fetch(url)).text()).split('\n');
+        const pos = []; // This will store all the raw vertex positions (x, y, z)
+
+        for (const line of lines) {
+            const [type, ...data] = line.trim().split(/\s+/);
+            if (type === 'v') {
+                // If it's a vertex line, parse the numbers and push them directly
+                pos.push(parseFloat(data[0]), parseFloat(data[1]), parseFloat(data[2]));
+            }
+            // We ignore 'f', 'vn', 'vt' lines as we only want raw vertices for points
+        }
+        console.log(`Loaded ${pos.length / 3} vertices.`);
+        return new Float32Array(pos); // Return only the raw 'v' vertices
+    };
+
+
+    const run = async () => {
+        // Load the model data
+        const vertexData = await loadObj('../teapot.obj');
+        const numVertices = vertexData.length / 3; // Each vertex has 3 components (x, y, z)
+
+        const vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW);
+
+        // Set up position attribute for layout(location=0)
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); // 3 components, float, no normalization, stride 0 (tightly packed), offset 0
+        gl.enableVertexAttribArray(0);
+
+        // Uniform locations
+        const modelLoc = gl.getUniformLocation(program, 'uModel');
+        const viewLoc = gl.getUniformLocation(program, 'uView');
+        const projectionLoc = gl.getUniformLocation(program, 'uProjection');
+        const colorLoc = gl.getUniformLocation(program, 'uColor');
+
+        // Set a color for the points (e.g., white)
+        gl.uniform4fv(colorLoc, [1.0, 1.0, 1.0, 1.0]);
+
+        const model = mat4.create();
+        const view = mat4.create();
+        const projection = mat4.create();
+
+        // Initial transformations for the object
+        mat4.translate(model, model, [0, 0, 0]); // Keep at origin or adjust as needed
+        mat4.scale(model, model, [0.05, 0.05, 0.05]); // Scale down the teapot (it's often very large)
+
+        //  rotating the model so it faces the camera correctly
+        mat4.rotateY(model, model, Math.PI / 2);
+        mat4.rotateX(model, model, -Math.PI / 2);
+
+        // Camera setup: [eyeX, eyeY, eyeZ], [targetX, targetY, targetZ], [upX, upY, upZ]
+        mat4.lookAt(view, [3, 0.5, 0], [0, 0.5, 0], [0, 1, 0]);
+
+        // Projection setup: field of view, aspect ratio, near clip, far clip
+        mat4.perspective(projection, Math.PI / 3, gl.canvas.width / gl.canvas.height, 0.1, 100);
+
+        // Upload view and projection matrices once (they don't change per frame)
+        gl.uniformMatrix4fv(viewLoc, false, view);
+        gl.uniformMatrix4fv(projectionLoc, false, projection);
+
+        // Set clear color to a dark gray
+        gl.clearColor(0.1, 0.1, 0.1, 1.0);
+
+        const draw = () => {
+            requestAnimationFrame(draw);
+
+            // Clear only the color buffer, as depth test isn't relevant for just points
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            // Rotate the model over time
+            mat4.rotateZ(model, model, 0.01); // Rotate around the Z-axis
+            gl.uniformMatrix4fv(modelLoc, false, model);
+
+            // Draw the vertices as points
+            gl.drawArrays(gl.POINTS, 0, numVertices);
+        };
+
+        draw(); // Start the rendering loop
+    };
+
+    run(); // Execute the main function
+
+  </script>
+</body>
+</html>
