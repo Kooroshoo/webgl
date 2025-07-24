@@ -1,7 +1,8 @@
-Project 1 - Transformations 
+# Project 1 - Transformations 
 In this project, we display the vertices of an object using WebGL. This involves loading vertex data from an .obj file, creating vertex buffers, writing GLSL shaders, and applying transformations.
 
-Features:
+## Requirements
+
 - Load .obj files asynchronously
 - Parse vertices for rendering
 - Create vertex buffers and vertex array objects

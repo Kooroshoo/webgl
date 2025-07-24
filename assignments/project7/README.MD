@@ -1,41 +1,25 @@
-# Project 7 - Tessellation 
+# Project 7 - Tessellation
 
-In this project we will implement simple normal mapping and displacement mapping. This project will include using both tessellation shaders and geometry shaders.
+Implement normal and displacement mapping using tessellation and geometry shaders in WebGL.
 
-## Step 1: Normal Mapping
+## Requirements
 
-- Load a `.png` normal map as the first input.
-- Draw a hard-coded quad.
-- Use the normal map in the fragment shader to modify surface normals.
-- Implement Blinn shading with diffuse and specular lighting.
+### Normal Mapping
+- Load normal map (`.png`)  
+- Draw hard-coded quad  
+- Modify normals in fragment shader  
+- Blinn shading with diffuse + specular  
 
-![alt text](image.png)
-![alt text](image-1.png)
+### Triangulation (Geometry Shader)
+- Convert triangles to lines to show edges  
+- Overlay triangulation with slight offset  
+- Toggle with space key  
 
-## Step 2: Show Triangulation
+### Displacement Mapping (Optional)
+- Load displacement map (`.png`)  
+- Use tessellation shader to subdivide quad  
+- Displace vertices in evaluation shader  
+- Control tessellation with arrow keys  
+- Use same triangulation overlay  
 
-- The quad consists of two triangles.
-- Write a geometry shader that converts triangles into line segments to display edges.
-- Draw the plane normally, then overlay the triangulation with the geometry shader.
-- Offset lines slightly toward the camera to avoid z-fighting.
-- Toggle triangulation display using the space key.
-
-![alt text](image-2.png)
-
-## Step 3: Displacement Mapping
-
-- Load a second `.png` displacement map as the second input (optional).
-- If no second input is given, skip displacement mapping.
-- Use a tessellation shader to subdivide the plane.
-- Control tessellation level with left/right arrow keys.
-- Displace vertices upward based on the displacement map in the tessellation evaluation shader.
-- Use the same geometry shader from Step 2 to display triangulation.
-- Use space key to toggle triangulation display.
-
-![alt text](image-3.png)
-
-![alt text](image-4.png)
-
-![alt text](image-5.png)
-
-![alt text](image-6.png)
+![alt text](image.png)  
