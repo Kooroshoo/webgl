@@ -1,4 +1,4 @@
-# Project 3 - Shading (WebGL)
+# Project 2 - Shading 
 
 ## Overview
 

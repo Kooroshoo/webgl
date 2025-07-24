@@ -96,7 +96,7 @@
 
     const run = async () => {
         // Load the model data
-        const vertexData = await loadObj('../teapot.obj');
+        const vertexData = await loadObj('./teapot.obj');
         const numVertices = vertexData.length / 3; // Each vertex has 3 components (x, y, z)
 
         const vertexBuffer = gl.createBuffer();
