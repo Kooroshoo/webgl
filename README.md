@@ -33,7 +33,7 @@ Use WebGL to apply lighting and shading to 3D objects.
 
 ---
 
-# Project 3 - Textures (WebGL)
+# Project 3 - Textures
 
 Apply texture mapping to 3D models in WebGL using data from `.obj` and `.mtl` files.
 
