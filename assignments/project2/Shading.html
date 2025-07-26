@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Shading</title>
+  <title>Project 2 - Shading</title>
   <style>
     body {
       margin: 0;
@@ -21,7 +21,7 @@
 <body>
   <canvas id="glCanvas" width="800" height="600"></canvas>
   <script type="module">
-    import { mat4 } from 'https://cdn.jsdelivr.net/npm/gl-matrix@3.4.3/esm/index.js';
+    import { mat4, vec3 } from 'https://cdn.jsdelivr.net/npm/gl-matrix@3.4.3/esm/index.js';
 
     const canvas = document.getElementById('glCanvas');
     const gl = canvas.getContext('webgl2');
@@ -35,25 +35,46 @@
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uProjection;
+    uniform mat4 uNormalMatrix; // For transforming normals
 
     layout(location=0) in vec4 aPosition;
+    layout(location=1) in vec3 aNormal; // New: Normal attribute
+
+    out vec3 vNormal; // Pass normal to fragment shader
+    out vec3 vFragPos; // Pass fragment position to fragment shader
 
     void main()
     {
+        vFragPos = vec3(uModel * aPosition); // Fragment position in world space
+        vNormal = mat3(uNormalMatrix) * aNormal; // Transform normal
         gl_Position = uProjection * uView * uModel * aPosition;
-        gl_PointSize = 3.0; // Set point size to 3 pixels for better visibility
     }`;
 
     const fragmentShaderSrc = `#version 300 es
     precision mediump float;
 
     uniform vec4 uColor;
+    uniform vec3 uLightDirection; // Direction of the light source
+
+    in vec3 vNormal;
+    in vec3 vFragPos;
 
     out vec4 fragColor;
 
     void main()
     {
-        fragColor = uColor;
+        // Ambient component
+        float ambientStrength = 0.1;
+        vec3 ambient = ambientStrength * uColor.rgb;
+
+        // Diffuse component
+        vec3 norm = normalize(vNormal);
+        vec3 lightDir = normalize(uLightDirection); // Light direction
+        float diff = max(dot(norm, lightDir), 0.0);
+        vec3 diffuse = diff * uColor.rgb;
+
+        vec3 result = ambient + diffuse;
+        fragColor = vec4(result, uColor.a);
     }`;
 
     // --- Shader and Program Compilation ---
@@ -76,89 +97,177 @@
     }
     gl.useProgram(program);
 
-    // --- OBJ Loader (Modified to only get 'v' vertices) ---
+    // --- OBJ Loader (Modified to parse 'f' faces and calculate normals) ---
     const loadObj = async url => {
         const lines = (await (await fetch(url)).text()).split('\n');
-        const pos = []; // This will store all the raw vertex positions (x, y, z)
+        const positions = [];
+        const normals = []; // Store calculated normals
+        const indices = [];
+
+        // Temporary storage for unique vertices (position + normal)
+        const tempVertices = new Map();
+        const uniquePositions = [];
+        const uniqueNormals = [];
 
         for (const line of lines) {
             const [type, ...data] = line.trim().split(/\s+/);
             if (type === 'v') {
-                // If it's a vertex line, parse the numbers and push them directly
-                pos.push(parseFloat(data[0]), parseFloat(data[1]), parseFloat(data[2]));
+                positions.push(parseFloat(data[0]), parseFloat(data[1]), parseFloat(data[2]));
+            } else if (type === 'f') {
+                // For faces, we need to create indexed data for position and normal
+                const faceIndices = [];
+                for (let i = 0; i < data.length; ++i) {
+                    // Assuming 'f v//vn' format, where we only care about v (position) index for now
+                    faceIndices.push(parseInt(data[i].split('/')[0]) - 1); // Get vertex index
+                }
+
+                // If it's a quad, triangulate it
+                if (faceIndices.length === 4) {
+                    indices.push(faceIndices[0], faceIndices[1], faceIndices[2]);
+                    indices.push(faceIndices[0], faceIndices[2], faceIndices[3]);
+                } else if (faceIndices.length === 3) {
+                    indices.push(faceIndices[0], faceIndices[1], faceIndices[2]);
+                } else {
+                    console.warn("Unsupported face format (not tri or quad):", line);
+                }
             }
-            // We ignore 'f', 'vn', 'vt' lines as we only want raw vertices for points
         }
-        console.log(`Loaded ${pos.length / 3} vertices.`);
-        return new Float32Array(pos); // Return only the raw 'v' vertices
+
+        // Now calculate face normals and then vertex normals
+        const vertexNormals = new Array(positions.length / 3).fill(null).map(() => vec3.create());
+        const faceCount = indices.length / 3;
+
+        for (let i = 0; i < faceCount; ++i) {
+            const i1 = indices[i * 3];
+            const i2 = indices[i * 3 + 1];
+            const i3 = indices[i * 3 + 2];
+
+            const p1 = vec3.fromValues(positions[i1 * 3], positions[i1 * 3 + 1], positions[i1 * 3 + 2]);
+            const p2 = vec3.fromValues(positions[i2 * 3], positions[i2 * 3 + 1], positions[i2 * 3 + 2]);
+            const p3 = vec3.fromValues(positions[i3 * 3], positions[i3 * 3 + 1], positions[i3 * 3 + 2]);
+
+            const edge1 = vec3.create();
+            const edge2 = vec3.create();
+            vec3.subtract(edge1, p2, p1);
+            vec3.subtract(edge2, p3, p1);
+
+            const faceNormal = vec3.create();
+            vec3.cross(faceNormal, edge1, edge2);
+            vec3.normalize(faceNormal, faceNormal);
+
+            // Add face normal to its vertices' accumulated normals
+            vec3.add(vertexNormals[i1], vertexNormals[i1], faceNormal);
+            vec3.add(vertexNormals[i2], vertexNormals[i2], faceNormal);
+            vec3.add(vertexNormals[i3], vertexNormals[i3], faceNormal);
+        }
+
+        // Normalize all vertex normals
+        for (let i = 0; i < vertexNormals.length; ++i) {
+            vec3.normalize(vertexNormals[i], vertexNormals[i]);
+            normals.push(vertexNormals[i][0], vertexNormals[i][1], vertexNormals[i][2]);
+        }
+
+        console.log(`Loaded ${positions.length / 3} vertices and ${indices.length / 3} faces.`);
+        return {
+            positions: new Float32Array(positions),
+            normals: new Float32Array(normals),
+            indices: new Uint16Array(indices)
+        };
     };
 
 
     const run = async () => {
         // Load the model data
-        const vertexData = await loadObj('./teapot.obj');
-        const numVertices = vertexData.length / 3; // Each vertex has 3 components (x, y, z)
+        const objData = await loadObj('../../assets/teapot.obj');
+        const vertexData = objData.positions;
+        const normalData = objData.normals; // Get normal data
+        const indexData = objData.indices;
+        const numElements = indexData.length;
 
-        const vertexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        // Vertex Buffer for Positions
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW);
-
-        // Set up position attribute for layout(location=0)
-        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); // 3 components, float, no normalization, stride 0 (tightly packed), offset 0
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(0);
+
+        // New: Vertex Buffer for Normals (layout(location=1))
+        const normalBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, normalData, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(1);
+
+        // Index Buffer
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
 
         // Uniform locations
         const modelLoc = gl.getUniformLocation(program, 'uModel');
         const viewLoc = gl.getUniformLocation(program, 'uView');
         const projectionLoc = gl.getUniformLocation(program, 'uProjection');
+        const normalMatrixLoc = gl.getUniformLocation(program, 'uNormalMatrix'); // New: Normal Matrix uniform
         const colorLoc = gl.getUniformLocation(program, 'uColor');
+        const lightDirectionLoc = gl.getUniformLocation(program, 'uLightDirection'); // New: Light Direction uniform
 
-        // Set a color for the points (e.g., white)
-        gl.uniform4fv(colorLoc, [1.0, 1.0, 1.0, 1.0]);
+        // Set the teapot color to red
+        gl.uniform4fv(colorLoc, [1.0, 0.0, 0.0, 1.0]); // Red color
+
+        // Set the light direction (e.g., from top-front-right)
+        // Remember to normalize this vector
+        const lightDirection = vec3.normalize(vec3.create(), vec3.fromValues(0.5, 1.0, 0.5));
+        gl.uniform3fv(lightDirectionLoc, lightDirection);
 
         const model = mat4.create();
         const view = mat4.create();
         const projection = mat4.create();
+        const normalMatrix = mat4.create(); // New: For transforming normals
 
         // Initial transformations for the object
-        mat4.translate(model, model, [0, 0, 0]); // Keep at origin or adjust as needed
-        mat4.scale(model, model, [0.05, 0.05, 0.05]); // Scale down the teapot (it's often very large)
-
-        //  rotating the model so it faces the camera correctly
+        mat4.translate(model, model, [0, 0, 0]);
+        mat4.scale(model, model, [0.05, 0.05, 0.05]);
         mat4.rotateY(model, model, Math.PI / 2);
         mat4.rotateX(model, model, -Math.PI / 2);
 
-        // Camera setup: [eyeX, eyeY, eyeZ], [targetX, targetY, targetZ], [upX, upY, upZ]
+        // Camera setup
         mat4.lookAt(view, [3, 0.5, 0], [0, 0.5, 0], [0, 1, 0]);
-
-        // Projection setup: field of view, aspect ratio, near clip, far clip
         mat4.perspective(projection, Math.PI / 3, gl.canvas.width / gl.canvas.height, 0.1, 100);
 
-        // Upload view and projection matrices once (they don't change per frame)
+        // Upload view and projection matrices once
         gl.uniformMatrix4fv(viewLoc, false, view);
         gl.uniformMatrix4fv(projectionLoc, false, projection);
 
-        // Set clear color to a dark gray
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        gl.enable(gl.CULL_FACE); // Enable face culling for better performance (back faces)
+        gl.cullFace(gl.BACK);
+
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
 
         const draw = () => {
             requestAnimationFrame(draw);
 
-            // Clear only the color buffer, as depth test isn't relevant for just points
-            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             // Rotate the model over time
-            mat4.rotateZ(model, model, 0.01); // Rotate around the Z-axis
+            mat4.rotateZ(model, model, 0.01);
             gl.uniformMatrix4fv(modelLoc, false, model);
 
-            // Draw the vertices as points
-            gl.drawArrays(gl.POINTS, 0, numVertices);
+            // Calculate and upload the normal matrix
+            // The normal matrix is the inverse transpose of the model-view matrix
+            // For uniform scaling, just the inverse transpose of the model matrix is sufficient
+            mat4.invert(normalMatrix, model);
+            mat4.transpose(normalMatrix, normalMatrix);
+            gl.uniformMatrix4fv(normalMatrixLoc, false, normalMatrix);
+
+            gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0);
         };
 
-        draw(); // Start the rendering loop
+        draw();
     };
 
-    run(); // Execute the main function
+    run();
 
   </script>
 </body>

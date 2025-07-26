@@ -11,5 +11,6 @@ Apply texture mapping to 3D models in WebGL using data from `.obj` and `.mtl` fi
 ## Optional
 
 - Load and apply specular texture  
+- Blinn-Phong lighting: ambient, diffuse, specular  
 
 ![alt text](image.png)
