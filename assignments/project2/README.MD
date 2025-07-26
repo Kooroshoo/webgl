@@ -1,6 +1,6 @@
 # Project 2 - Shading
 
-Use WebGL to apply lighting and shading to 3D objects with Blinn-Phong shading.
+Use WebGL to apply lighting and shading to 3D objects.
 
 ## Requirements
 
